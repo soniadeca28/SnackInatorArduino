@@ -1,0 +1,20 @@
+motor
+200 steps = one rotation
+delay --> face pasii mai incet
+
+conectare arduino driver
+vdd driver  - 5v arduino (rosu)
+gnd driver - gnd arduino (blue)
+
+slp driver - rst driver ( sleep - pentru consum redus de energie daca e pus pe low, reset - toate step-urile sunt ignorate daca e pe low, pana se pune pe high ) (green)
+
+vmot driver - + power supply (conectare la acumulator) (yellow)
+gnd driver - -power supply (conectare la acumulator) (blue)
+
+stp driver - pin ~3 arduino (analog) (yellow)
+dir driver - pin 2 (digital) (purple)
+
+motor 4 pini - driver (de vazut mai multe) (verif toate culorile dc nu se match-uie)
+
+Site ajutor: 
+https://www.makerguides.com/a4988-stepper-motor-driver-arduino-tutorial/
