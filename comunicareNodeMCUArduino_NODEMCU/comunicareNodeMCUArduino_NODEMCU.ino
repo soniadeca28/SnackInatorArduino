@@ -176,6 +176,7 @@ void verifyTimeForMeal() {
 void getFountainStatus()
 {
   status = Firebase.getInt(fountainAllDay);
+  
   if(status != previousStatus)
   {
     previousStatus = status;

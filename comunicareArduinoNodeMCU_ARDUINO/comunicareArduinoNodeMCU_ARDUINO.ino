@@ -2,6 +2,7 @@
 
 SoftwareSerial softSerial(5,6);
 
+unsigned long currentTime, lastTime;
 
 #define echopin 8 // echo pin of the distance sensor
 #define trigpin 9 // trig pin of the distance sensor
@@ -16,8 +17,6 @@ char s[]="";
 String received;
 
 int fountainStatus = 1;
-
-int currentTime, lastTime;
 
 
 void serveFood(int srv, bool serveW)
@@ -42,6 +41,8 @@ void serveWater(int fountainStatus)
 
 void sendTrigAndCalculateDistance()
 {
+  currentTime = millis();
+  
   digitalWrite(trigpin,LOW);
   delayMicroseconds(2);
   digitalWrite(trigpin,HIGH);
@@ -50,12 +51,13 @@ void sendTrigAndCalculateDistance()
   distance=pulseIn(echopin,HIGH);
   distance=distance/58;
 
-  if(distance > 20)
+  if(distance > 20 && currentTime >= lastTime)
   {
+    lastTime = currentTime + 600000;
     DISTANCE = String("   " + String(distance));
     softSerial.print(DISTANCE);
     Serial.println("S-a trimis notificare ca nu mai e mangiare");
-    delay(200);
+    delay(5000);
   }
 }
 
@@ -66,7 +68,7 @@ void setup() {
   pinMode(echopin,INPUT); //echo pin is input because it stores the duration of ultrasound to the object and back in microseconds
   pinMode(trigpin,OUTPUT); //echo pin is output because it lets the ultrasound be sent
 
-  sendTrigAndCalculateDistance(); //calculate first distance
+  //sendTrigAndCalculateDistance(); //calculate first distance
   
   while (!softSerial) 
   {
@@ -81,6 +83,9 @@ void loop() {
  // Serial.println(softSerial.readString());
   if (softSerial.available()) 
   {
+
+    sendTrigAndCalculateDistance(); // send notification if distance is too big
+    
     received = softSerial.readString();
 
     Serial.print("S-a primit: ");
@@ -115,7 +120,5 @@ void loop() {
   }
   
   serveWater(fountainStatus);
-
-  sendTrigAndCalculateDistance();
 
 }
