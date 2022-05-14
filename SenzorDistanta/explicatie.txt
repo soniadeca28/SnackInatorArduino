@@ -1,0 +1,1 @@
+se invarte in jurul valorii 22, 23 cand e gol, deci probabil am sa pun un prag de 20 de cm pentru cand sa trimita notificare.

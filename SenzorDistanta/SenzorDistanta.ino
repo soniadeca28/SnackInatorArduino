@@ -24,5 +24,6 @@ void loop() {
   distance=pulseIn(echopin,HIGH);
   distance=distance/58; //because the pulse travels at 58 microseconds/cm, and distance is measured in microseconds
   Serial.println(distance);
+  delay(2000);
   
 }
