@@ -1,5 +1,15 @@
 #include <SoftwareSerial.h>
 
+//motor: 
+#define dirPin 2 //pin directie motor
+#define stepPin 3 //pin pas motor
+#define stepsPerRevolution 200 //o rotatie intreaga
+//enable:
+#define enableDisableMotor 12 //pin enable
+
+//pompa:
+#define pumpController 13 //pin pompa
+
 SoftwareSerial softSerial(5,6);
 
 unsigned long currentTime, lastTime;
@@ -10,6 +20,12 @@ unsigned long currentTime, lastTime;
 float distance; // distance calculated by distance sensor
 
 String DISTANCE;
+String WATER;
+
+#define waterSignal A0
+#define waterPower 7
+
+int waterLevel;
 
 int serving;
 String serv;
@@ -21,6 +37,7 @@ int fountainStatus = 1;
 
 void serveFood(int srv, bool serveW)
 {
+  controlMotor();
   Serial.print("Au fost servite ");
   Serial.print(srv);
   Serial.println(" g");
@@ -28,6 +45,7 @@ void serveFood(int srv, bool serveW)
   if(serveW == true && fountainStatus == 0)
   {
     Serial.println("S-a dat si apa~");
+    controlFountain();
   }
 }
 
@@ -35,14 +53,16 @@ void serveWater(int fountainStatus)
 {
   if(fountainStatus == 1)
   {
+    controlFountain();
     Serial.println("~");//wave form for water!
   }
 }
 
-void sendTrigAndCalculateDistance()
+void checkForNotifications()
 {
   currentTime = millis();
-  
+
+  //SAVE DISTANCE
   digitalWrite(trigpin,LOW);
   delayMicroseconds(2);
   digitalWrite(trigpin,HIGH);
@@ -51,19 +71,90 @@ void sendTrigAndCalculateDistance()
   distance=pulseIn(echopin,HIGH);
   distance=distance/58;
 
-  if(distance > 20 && currentTime >= lastTime)
+  //SAVE WATER LEVEL
+  digitalWrite(waterPower,HIGH);
+  delay(100);
+  waterLevel = analogRead(waterSignal);
+  digitalWrite(waterPower,LOW);
+
+  if(currentTime >= lastTime)
   {
-    lastTime = currentTime + 600000;
-    DISTANCE = String("   " + String(distance));
-    softSerial.print(DISTANCE);
-    Serial.println("S-a trimis notificare ca nu mai e mangiare");
-    delay(5000);
+    //lastTime = currentTime + 600000;
+    lastTime = currentTime + 30000;
+
+    Serial.print("Distance: ");
+    Serial.println(distance);
+
+    Serial.print("Water: ");
+    Serial.println(waterLevel);
+    
+    if(distance > 20)
+    {
+      DISTANCE = String("DISTANCE");
+      softSerial.print(DISTANCE);
+      Serial.println("S-a trimis notificare ca nu mai e mangiare");
   }
+  if(waterLevel <= 300)
+    {
+      WATER = String("WATER");
+      softSerial.print(WATER);
+      Serial.println("S-a trimis notificare ca nu mai e apa");
+    }
+  }
+}
+
+void controlMotor()
+{
+  digitalWrite(enableDisableMotor,LOW); //enable motor
+  
+  // Set the spinning direction clockwise:
+  digitalWrite(dirPin, HIGH);
+
+  // Spin the stepper motor 1 revolution slowly:
+  for (int i = 0; i < stepsPerRevolution; i++) { //o rotatie
+    // These four lines result in 1 step:
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(1000);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(1000);
+  }
+
+  digitalWrite(dirPin, LOW);
+
+    for (int i = 0; i < stepsPerRevolution; i++) { //o rotatie
+    // These four lines result in 1 step:
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(1000);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(1000);
+  }
+  
+  //fara sa disable-ui motorul cand merge pompa, din cauza power supply-ului comun, merge si motorul aiurea cand merge pompa
+  digitalWrite(enableDisableMotor,HIGH); //disable motor --> nu e negat deci e normally enabled 
+}
+
+void controlFountain()
+{
+  digitalWrite(pumpController,HIGH);
+  delay(1000);
+  digitalWrite(pumpController,LOW);
 }
 
 void setup() {
   Serial.begin(9600);
   softSerial.begin(9600);
+
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+
+  pinMode(pumpController,OUTPUT);
+  digitalWrite(pumpController,LOW);
+
+  pinMode(enableDisableMotor,OUTPUT);
+  digitalWrite(enableDisableMotor,HIGH); //disable motor --> nu e negat deci e normally enabled 
+
+  pinMode(waterPower,OUTPUT);
+  digitalWrite(waterPower,LOW);
 
   pinMode(echopin,INPUT); //echo pin is input because it stores the duration of ultrasound to the object and back in microseconds
   pinMode(trigpin,OUTPUT); //echo pin is output because it lets the ultrasound be sent
@@ -82,10 +173,7 @@ void loop() {
   
  // Serial.println(softSerial.readString());
   if (softSerial.available()) 
-  {
-
-    sendTrigAndCalculateDistance(); // send notification if distance is too big
-    
+  { 
     received = softSerial.readString();
 
     Serial.print("S-a primit: ");
@@ -119,6 +207,8 @@ void loop() {
     
   }
   
+  checkForNotifications(); // send notification if distance is too big
+                             //send notification if water level is too low
   serveWater(fountainStatus);
 
 }

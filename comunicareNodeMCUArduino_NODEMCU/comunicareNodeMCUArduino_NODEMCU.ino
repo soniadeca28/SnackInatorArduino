@@ -152,7 +152,7 @@ void verifyTimeForMeal() {
     sent = true;
     LUNCH = String( "   " + String(servingL));
     softSerial.print(LUNCH);
-    Serial.println("S-a tr pranzu");
+    Serial.println("S-a tr pranzu + posibil apa");
     delay(200);
   } 
   
@@ -218,20 +218,23 @@ void loop() {
   {
     notification = softSerial.readString();
 
-    if(notification.startsWith("   "))
+    boolean x = currentTime >= lastTimeOfNotification + 1800;
+    Serial.println(x);
+
+   if(currentTime >= lastTimeOfNotification + 1800)
+   {
+    
+    lastTimeOfNotification = currentTime;
+
+    notification.trim();
+    Serial.println(notification);
+    
+    if(notification.startsWith("DISTANCE",0))
     {
       notificationMessage = "DISTANCE";
-      if(currentTime >= lastTimeOfNotification + 1800)
-      {
       distancePath = String( pathSendTo + String("/") + notificationMessage );
       Firebase.setString(distancePath, "1");
-      lastTimeOfNotification = currentTime;
-      Serial.println("S-a trimis notificare");
-      }
-      else
-      {
-        Serial.println("S-a trimis deja");
-      }
+      Serial.println("S-a trimis notificare rezervor mancare");
 
       if (Firebase.failed()) {
       Serial.print("Sending distance notification failed");
@@ -239,6 +242,20 @@ void loop() {
       }
     }
     
+    if(notification.indexOf("WATER",0))
+    {
+      notificationMessage = "WATER";
+      distancePath = String( pathSendTo + String("/") + notificationMessage );
+      Firebase.setString(distancePath, "1");
+      Serial.println("S-a trimis notificare apa");
+
+      if (Firebase.failed()) {
+      Serial.print("Sending water notification failed");
+      Serial.println(Firebase.error()); 
+      }
+    }
+
+   }  
   }
 
   verifyTimeForMeal();
