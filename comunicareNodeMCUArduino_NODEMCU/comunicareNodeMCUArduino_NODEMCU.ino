@@ -141,7 +141,7 @@ void verifyTimeForMeal() {
   if (currentH == brH && currentM == brM && sent == false)
   {
     sent = true;
-    BREAKFAST = String( "  " + String(servingB));
+    BREAKFAST = String( "M" + String(servingB) + "OM");
     softSerial.print(BREAKFAST);
     Serial.println("S-a tr micudejoon");
     delay(200);
@@ -150,7 +150,7 @@ void verifyTimeForMeal() {
   if (currentH == lcH && currentM == lcM && sent == false)
   {
     sent = true;
-    LUNCH = String( "   " + String(servingL));
+    LUNCH = String( "L" + String(servingL) + "OL");
     softSerial.print(LUNCH);
     Serial.println("S-a tr pranzu + posibil apa");
     delay(200);
@@ -159,7 +159,7 @@ void verifyTimeForMeal() {
   if (currentH == dnH && currentM == dnM && sent == false)
   {
     sent = true;
-    DINNER = String( "  " + String(servingD));
+    DINNER = String( "M" + String(servingD) + "OM");
     softSerial.print(DINNER);
     Serial.println("S-a tr cina");
     delay(200);
@@ -180,7 +180,7 @@ void getFountainStatus()
   if(status != previousStatus)
   {
     previousStatus = status;
-    FOUNTAIN = String( " " + String(status));
+    FOUNTAIN = String( "W" + String(status) + "OW");
     softSerial.print(FOUNTAIN);
     Serial.println("S-a tr apa");
     delay(200);
@@ -229,7 +229,7 @@ void loop() {
     notification.trim();
     Serial.println(notification);
     
-    if(notification.startsWith("DISTANCE",0))
+    if(notification.startsWith("DISTANCE") >= 0)
     {
       notificationMessage = "DISTANCE";
       distancePath = String( pathSendTo + String("/") + notificationMessage );
@@ -242,7 +242,7 @@ void loop() {
       }
     }
     
-    if(notification.indexOf("WATER",0))
+    if(notification.indexOf("WATER") >= 0)
     {
       notificationMessage = "WATER";
       distancePath = String( pathSendTo + String("/") + notificationMessage );

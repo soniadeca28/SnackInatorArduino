@@ -37,6 +37,10 @@ int fountainStatus = 1;
 
 void serveFood(int srv, bool serveW)
 {
+  if(fountainStatus == 1)
+  {
+    digitalWrite(pumpController,LOW);
+  }
   controlMotor();
   Serial.print("Au fost servite ");
   Serial.print(srv);
@@ -51,11 +55,7 @@ void serveFood(int srv, bool serveW)
 
 void serveWater(int fountainStatus)
 {
-  if(fountainStatus == 1)
-  {
-    controlFountain();
-    Serial.println("~");//wave form for water!
-  }
+    digitalWrite(pumpController,fountainStatus);
 }
 
 void checkForNotifications()
@@ -136,7 +136,7 @@ void controlMotor()
 void controlFountain()
 {
   digitalWrite(pumpController,HIGH);
-  delay(1000);
+  delay(4000);
   digitalWrite(pumpController,LOW);
 }
 
@@ -180,25 +180,30 @@ void loop() {
     Serial.println(received);
     Serial.println();
 
-    if(received.startsWith("   "))
+    if(received.indexOf("L") >= 0 && received.indexOf("OL") >= 0)
     {
       Serial.println(received);
+      received = received.substring(received.indexOf("L") + 1, received.indexOf("OL"));
       received.trim();
       serving = received.toInt();
 
       serveFood(serving, true);
     }
-    else if(received.startsWith("  "))
+    else if(received.indexOf("M") >= 0 && received.indexOf("OM") >= 0)
     {
+      received = received.substring(received.indexOf("M") + 1, received.indexOf("OM"));
       received.trim();
       serving = received.toInt();
 
       serveFood(serving, false);
 
     }
-    else if(received.startsWith(" "))
+    else if(received.indexOf("W") >= 0 && received.indexOf("OW") >= 0)
     {
+      received = received.substring(received.indexOf("W") + 1, received.indexOf("OW"));
       received.trim();
+      Serial.print("Apa dupa modificari: ");
+      Serial.println(received);
       fountainStatus = received.toInt();
 
       Serial.println("S-a primit statusul apei: ");
