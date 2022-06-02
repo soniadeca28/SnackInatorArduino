@@ -6,7 +6,7 @@
 #define clk  A1
 
 HX711 scale;
-float calibration = 350; // this calibration factor must be adjusted according to your load cell
+float calibration = 400; // this calibration factor must be adjusted according to your load cell
 float units;
 
 //motor:
@@ -139,6 +139,8 @@ void getGrams()
 
 void controlMotor(float srv)
 {
+  digitalWrite(pumpController, LOW);
+  
   getGrams();
 
   delay(5000);
@@ -152,8 +154,6 @@ void controlMotor(float srv)
 
     Serial.print("Serving: "); Serial.println(serving);
     Serial.print("In bowl: "); Serial.println(units);
-
-    digitalWrite(pumpController, LOW);
 
     digitalWrite(enableDisableMotor, LOW); //enable motor
 
@@ -230,6 +230,8 @@ void setup() {
 void loop() {
 
   // Serial.println(softSerial.readString());
+  digitalWrite(enableDisableMotor, HIGH);
+  
   if (softSerial.available())
   {
     received = softSerial.readString();
