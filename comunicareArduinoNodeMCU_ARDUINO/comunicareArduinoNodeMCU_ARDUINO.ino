@@ -30,6 +30,7 @@ float distance; // distance calculated by distance sensor
 
 String DISTANCE;
 String WATER;
+String NOTSERVED;
 
 #define waterSignal A0
 #define waterPower 7
@@ -46,12 +47,16 @@ int fountainStatus = 1;
 
 void serveFood(float srv, bool serveW)
 {
+  if(distance < 20)
+  {
   controlMotor(srv);
+  }
+  
   Serial.print("Au fost servite ");
   Serial.print(srv);
   Serial.println(" g");
 
-  if (serveW == true && fountainStatus == 0)
+  if (serveW == true && fountainStatus == 0 && waterLevel > 310)
   {
     Serial.println("S-a dat si apa~");
     controlFountain();
@@ -60,6 +65,11 @@ void serveFood(float srv, bool serveW)
 
 void serveWater(int fountainStatus)
 {
+  if(waterLevel <= 310)
+  {
+    digitalWrite(pumpController, 0);
+    return;
+  }
   digitalWrite(pumpController, fountainStatus);
 }
 
@@ -99,7 +109,8 @@ void checkForNotifications()
       softSerial.print(DISTANCE);
       Serial.println("S-a trimis notificare ca nu mai e mangiare");
     }
-    if (waterLevel <= 300)
+    
+    if (waterLevel <= 310)
     {
       WATER = String("WATER");
       softSerial.print(WATER);
@@ -116,21 +127,21 @@ void getGrams()
   {
     units = 0.00;
   }
-
-  if (Serial.available())
-  {
-    char temp = Serial.read();
-    if (temp == '+' || temp == 'a')
-      calibration += 1;
-    else if (temp == '-' || temp == 'z')
-      calibration -= 1;
-  }
-  if (Serial.available())
-  {
-    char temp = Serial.read();
-    if (temp == 't' || temp == 'T')
-      scale.tare();  //Reset the scale to zero
-  }
+  
+//  if (Serial.available())
+//  {
+//    char temp = Serial.read();
+//    if (temp == '+' || temp == 'a')
+//      calibration += 1;
+//    else if (temp == '-' || temp == 'z')
+//      calibration -= 1;
+//  }
+//  if (Serial.available())
+//  {
+//    char temp = Serial.read();
+//    if (temp == 't' || temp == 'T')
+//      scale.tare();  //Reset the scale to zero
+//  }
 
   Serial.print("Weight: ");
   Serial.print(units);
@@ -149,7 +160,7 @@ void controlMotor(float srv)
   Serial.print(units);
   Serial.println(" grams");
 
-  while (units < srv)
+  while (units < srv && distance < 20)
   {
 
     Serial.print("Serving: "); Serial.println(serving);
@@ -240,10 +251,10 @@ void loop() {
     Serial.println(received);
     Serial.println();
 
-    if (received.indexOf("L") >= 0 && received.indexOf("OL") >= 0)
+    if (received.indexOf("B") >= 0 && received.indexOf("OB") >= 0)
     {
       Serial.println(received);
-      received = received.substring(received.indexOf("L") + 1, received.indexOf("OL"));
+      received = received.substring(received.indexOf("B") + 1, received.indexOf("OB"));
       received.trim();
       serving = received.toFloat();
 

@@ -141,7 +141,7 @@ void verifyTimeForMeal() {
   if (currentH == brH && currentM == brM && sent == false)
   {
     sent = true;
-    BREAKFAST = String( "M" + String(servingB) + "OM");
+    BREAKFAST = String( "B" + String(servingB) + "OB");
     softSerial.print(BREAKFAST);
     Serial.println("S-a tr micudejoon");
     delay(200);
@@ -150,7 +150,7 @@ void verifyTimeForMeal() {
   if (currentH == lcH && currentM == lcM && sent == false)
   {
     sent = true;
-    LUNCH = String( "L" + String(servingL) + "OL");
+    LUNCH = String( "M" + String(servingL) + "OM");
     softSerial.print(LUNCH);
     Serial.println("S-a tr pranzu + posibil apa");
     delay(200);
