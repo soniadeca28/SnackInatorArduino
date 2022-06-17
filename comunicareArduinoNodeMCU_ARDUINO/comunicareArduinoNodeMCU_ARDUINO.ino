@@ -14,14 +14,14 @@ float units;
 #define stepPin 3 //pin pas motor
 #define stepsPerRevolution 200 //o rotatie intreaga
 //enable:
-#define enableDisableMotor 12 //pin enable
+#define disableMotor 12 //pin enable
 
 //pompa:
 #define pumpController 13 //pin pompa
 
 SoftwareSerial softSerial(5, 6);
 
-unsigned long currentTime, lastTime;
+unsigned long currentTime, lastTimeFood, lastTimeWater;
 
 #define echopin 8 // echo pin of the distance sensor
 #define trigpin 9 // trig pin of the distance sensor
@@ -44,28 +44,43 @@ String received;
 
 int fountainStatus = 1;
 
+int motorMicros;
+float multiplySteps;
+int errorM;
+
+int maxDistance;
+int case1Distance;
+int case2Distance;
 
 void serveFood(float srv, bool serveW)
 {
-  if(distance < 20)
+  Serial.println(units);
+  Serial.println(distance);
+  if (distance < 22)
   {
-  controlMotor(srv);
+    scale.set_scale(calibration);
+    scale.tare(50);
+    controlMotor(srv);
   }
-  
-  Serial.print("Au fost servite ");
+  else
+  {
+    Serial.println(distance);
+  }
+
+  Serial.print("Served: ");
   Serial.print(srv);
   Serial.println(" g");
 
-  if (serveW == true && fountainStatus == 0 && waterLevel > 310)
+  if (serveW == true && fountainStatus == 0 && waterLevel > 150)
   {
-    Serial.println("S-a dat si apa~");
+    Serial.println("Water was also served");
     controlFountain();
   }
 }
 
 void serveWater(int fountainStatus)
 {
-  if(waterLevel <= 310)
+  if (waterLevel <= 150)
   {
     digitalWrite(pumpController, 0);
     return;
@@ -73,11 +88,8 @@ void serveWater(int fountainStatus)
   digitalWrite(pumpController, fountainStatus);
 }
 
-void checkForNotifications()
+void verifyDistance()
 {
-  currentTime = millis();
-
-  //SAVE DISTANCE
   digitalWrite(trigpin, LOW);
   delayMicroseconds(2);
   digitalWrite(trigpin, HIGH);
@@ -85,74 +97,61 @@ void checkForNotifications()
   digitalWrite(trigpin, LOW);
   distance = pulseIn(echopin, HIGH);
   distance = distance / 58;
+}
 
+void verifyWaterLevel()
+{
   //SAVE WATER LEVEL
   digitalWrite(waterPower, HIGH);
   delay(100);
   waterLevel = analogRead(waterSignal);
   digitalWrite(waterPower, LOW);
+}
+void checkForNotifications()
+{
+  currentTime = millis();
 
-  if (currentTime >= lastTime)
+  verifyDistance();
+
+  verifyWaterLevel();
+
+  if (currentTime >= lastTimeFood && distance > 20)
   {
-    //lastTime = currentTime + 600000;
-    lastTime = currentTime + 30000;
+    lastTimeFood = currentTime + 1800000;
 
-    Serial.print("Distance: ");
+    DISTANCE = String("DISTANCE");
+    softSerial.print(DISTANCE);
+    Serial.println("Empty food tank notification sent!");
     Serial.println(distance);
-
-    Serial.print("Water: ");
-    Serial.println(waterLevel);
-
-    if (distance > 20)
-    {
-      DISTANCE = String("DISTANCE");
-      softSerial.print(DISTANCE);
-      Serial.println("S-a trimis notificare ca nu mai e mangiare");
-    }
-    
-    if (waterLevel <= 310)
-    {
-      WATER = String("WATER");
-      softSerial.print(WATER);
-      Serial.println("S-a trimis notificare ca nu mai e apa");
-    }
   }
+
+  if (currentTime >= lastTimeWater && waterLevel <= 200)
+  {
+    lastTimeWater = currentTime + 1800000;
+
+    WATER = String("WATER");
+    softSerial.print(WATER);
+    Serial.println("Empty fountain notification sent!");
+    Serial.println(waterLevel);
+  }
+
 }
 
 void getGrams()
 {
-  Serial.print("Reading scale first");
   units = scale.get_units(), 5;
   if (units < 0)
   {
     units = 0.00;
   }
-  
-//  if (Serial.available())
-//  {
-//    char temp = Serial.read();
-//    if (temp == '+' || temp == 'a')
-//      calibration += 1;
-//    else if (temp == '-' || temp == 'z')
-//      calibration -= 1;
-//  }
-//  if (Serial.available())
-//  {
-//    char temp = Serial.read();
-//    if (temp == 't' || temp == 'T')
-//      scale.tare();  //Reset the scale to zero
-//  }
-
-  Serial.print("Weight: ");
-  Serial.print(units);
-  Serial.println(" grams");
 }
 
 void controlMotor(float srv)
 {
   digitalWrite(pumpController, LOW);
-  
+
   getGrams();
+  verifyDistance();
 
   delay(5000);
 
@@ -160,41 +159,161 @@ void controlMotor(float srv)
   Serial.print(units);
   Serial.println(" grams");
 
-  while (units < srv && distance < 20)
+  if(srv < 30)
   {
+    errorM = 10;
+  }
+  else if (srv >30 && srv < 40)
+  {
+    errorM = 15;
+  }
+  else
+  {
+    errorM = 20;
+  }
+  maxDistance = 21;
+  case1Distance = 14;
+  case2Distance = 17;
 
-    Serial.print("Serving: "); Serial.println(serving);
-    Serial.print("In bowl: "); Serial.println(units);
+  while (units <= srv - errorM  && distance < maxDistance)
+  {
+    if (distance < case1Distance)
+    {
+      Serial.println("Case 1");
+      Serial.println(units);
+      Serial.println(distance);
 
-    digitalWrite(enableDisableMotor, LOW); //enable motor
+      motorMicros = 2000;
+      multiplySteps = 2;
 
-    // Set the spinning direction clockwise:
-    digitalWrite(dirPin, HIGH);
+      digitalWrite(dirPin, HIGH);
+      digitalWrite(disableMotor, LOW);
 
-    // Spin the stepper motor 1 revolution slowly:
-    for (int i = 0; i < stepsPerRevolution; i++) { //o rotatie
-      // These four lines result in 1 step:
-      digitalWrite(stepPin, HIGH);
-      delayMicroseconds(1000);
-      digitalWrite(stepPin, LOW);
-      delayMicroseconds(1000);
+      for (int i = 0; i < stepsPerRevolution * multiplySteps; i++) {
+        if (units < srv - errorM)
+        {
+          digitalWrite(stepPin, HIGH);
+          delayMicroseconds(motorMicros);
+          digitalWrite(stepPin, LOW);
+          delayMicroseconds(motorMicros);
+        }
+        else
+        {
+          break;
+        }
+      }
+
+      motorMicros = 1500;
+
+      digitalWrite(dirPin, LOW);
+
+      for (int i = 0; i < stepsPerRevolution * multiplySteps; i++) {
+        if (units < srv - errorM)
+        {
+          digitalWrite(stepPin, HIGH);
+          delayMicroseconds(motorMicros);
+          digitalWrite(stepPin, LOW);
+          delayMicroseconds(motorMicros);
+        }
+        else
+        {
+          break;
+        }
+      }
+      digitalWrite(disableMotor, HIGH);
     }
+    else if (distance >= case1Distance && distance < case2Distance)
+    {
+      Serial.println("Case 2");
+      Serial.println(units);
+      Serial.println(distance);
 
-    digitalWrite(dirPin, LOW);
+      motorMicros = 3000;
+      multiplySteps = 3;
 
-    for (int i = 0; i < stepsPerRevolution; i++) { //o rotatie
-      // These four lines result in 1 step:
-      digitalWrite(stepPin, HIGH);
-      delayMicroseconds(1000);
-      digitalWrite(stepPin, LOW);
-      delayMicroseconds(1000);
+      digitalWrite(dirPin, HIGH);
+      digitalWrite(disableMotor, LOW);
+
+      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
+        if (units < srv - errorM)
+        {
+          digitalWrite(stepPin, HIGH);
+          delayMicroseconds(motorMicros);
+          digitalWrite(stepPin, LOW);
+          delayMicroseconds(motorMicros);
+        }
+        else
+        {
+          break;
+        }
+      }
+
+      digitalWrite(dirPin, LOW);
+
+      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
+        if (units < srv - errorM)
+        {
+          digitalWrite(stepPin, HIGH);
+          delayMicroseconds(motorMicros);
+          digitalWrite(stepPin, LOW);
+          delayMicroseconds(motorMicros);
+        }
+        else
+        {
+          break;
+        }
+      }
+      digitalWrite(disableMotor, HIGH);
     }
+    else if (distance >= case2Distance)
+    {
+       Serial.println("Case 2");
+      Serial.println(units);
+      Serial.println(distance);
 
+      motorMicros = 4000;
+      multiplySteps = 3;
+
+      digitalWrite(dirPin, HIGH);
+      digitalWrite(disableMotor, LOW);
+
+      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
+        if (units < srv - errorM)
+        {
+          digitalWrite(stepPin, HIGH);
+          delayMicroseconds(motorMicros);
+          digitalWrite(stepPin, LOW);
+          delayMicroseconds(motorMicros);
+        }
+        else
+        {
+          break;
+        }
+      }
+
+      digitalWrite(dirPin, LOW);
+
+      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
+        if (units < srv - errorM)
+        {
+          digitalWrite(stepPin, HIGH);
+          delayMicroseconds(motorMicros);
+          digitalWrite(stepPin, LOW);
+          delayMicroseconds(motorMicros);
+        }
+        else
+        {
+          break;
+        }
+      }
+      digitalWrite(disableMotor, HIGH);;
+    }
     getGrams();
+    verifyDistance();
   }
 
   //fara sa disable-ui motorul cand merge pompa, din cauza power supply-ului comun, merge si motorul aiurea cand merge pompa
-  digitalWrite(enableDisableMotor, HIGH); //disable motor --> nu e negat deci e normally enabled
+  digitalWrite(disableMotor, HIGH); //disable motor --> nu e negat deci e normally enabled
 }
 
 void controlFountain()
@@ -208,10 +327,9 @@ void setup() {
   Serial.begin(9600);
   softSerial.begin(9600);
 
-  //cantar
   scale.begin(data, clk);
-  scale.set_scale(calibration); //Adjust to this calibration factor
-  scale.tare();  //Reset the scale to 0
+  scale.set_scale(calibration);
+  scale.tare();
 
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
@@ -219,37 +337,27 @@ void setup() {
   pinMode(pumpController, OUTPUT);
   digitalWrite(pumpController, LOW);
 
-  pinMode(enableDisableMotor, OUTPUT);
-  digitalWrite(enableDisableMotor, HIGH); //disable motor --> nu e negat deci e normally enabled
+  pinMode(disableMotor, OUTPUT);
+  digitalWrite(disableMotor, HIGH);
 
   pinMode(waterPower, OUTPUT);
   digitalWrite(waterPower, LOW);
 
-  pinMode(echopin, INPUT); //echo pin is input because it stores the duration of ultrasound to the object and back in microseconds
-  pinMode(trigpin, OUTPUT); //echo pin is output because it lets the ultrasound be sent
+  pinMode(echopin, INPUT);
+  pinMode(trigpin, OUTPUT);
 
-  //sendTrigAndCalculateDistance(); //calculate first distance
-
-  while (!softSerial)
-  {
-    ; // wait for serial port to connect. Needed for native USB port only
-    Serial.print(".");
-  }
-  Serial.println("connected!");
+  verifyWaterLevel();
+  verifyDistance();
+  getGrams();
 }
 
 void loop() {
 
-  // Serial.println(softSerial.readString());
-  digitalWrite(enableDisableMotor, HIGH);
-  
+  digitalWrite(disableMotor, HIGH);
+
   if (softSerial.available())
   {
     received = softSerial.readString();
-
-    Serial.print("S-a primit: ");
-    Serial.println(received);
-    Serial.println();
 
     if (received.indexOf("B") >= 0 && received.indexOf("OB") >= 0)
     {
@@ -267,18 +375,12 @@ void loop() {
       serving = received.toFloat();
 
       serveFood(serving, false);
-
     }
     else if (received.indexOf("W") >= 0 && received.indexOf("OW") >= 0)
     {
       received = received.substring(received.indexOf("W") + 1, received.indexOf("OW"));
       received.trim();
-      Serial.print("Apa dupa modificari: ");
-      Serial.println(received);
       fountainStatus = received.toInt();
-
-      Serial.println("S-a primit statusul apei: ");
-      Serial.println(fountainStatus);
     }
 
   }
@@ -286,8 +388,5 @@ void loop() {
   checkForNotifications(); // send notification if distance is too big
   //send notification if water level is too low
   serveWater(fountainStatus);
-
-  getGrams();
-  delay(2000);
 
 }

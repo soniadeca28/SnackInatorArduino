@@ -5,8 +5,6 @@
 #include <SoftwareSerial.h>
 
 #define code "SNK2"
-
-// Set these to run example.
 #define FIREBASE_HOST "snackinator-lic-default-rtdb.europe-west1.firebasedatabase.app"
 #define FIREBASE_AUTH "7vNU6vUl9QqcWM8b0JvpWGjqo9himE8jAguDNAz3"
 #define WIFI_SSID "S&D"
@@ -109,10 +107,6 @@ void getFirebasePaths() {
 void verifyTimeForMeal() {
 
   timeClient.update();
-  //set hour
-  Firebase.setInt("hour", timeClient.getHours());
-  //set minutes
-  Firebase.setInt("minutes", timeClient.getMinutes());
 
   int servingB, servingL, servingD;
 
@@ -143,8 +137,7 @@ void verifyTimeForMeal() {
     sent = true;
     BREAKFAST = String( "B" + String(servingB) + "OB");
     softSerial.print(BREAKFAST);
-    Serial.println("S-a tr micudejoon");
-    delay(200);
+    Serial.println("Breakfast was sent!");
   }
 
   if (currentH == lcH && currentM == lcM && sent == false)
@@ -152,8 +145,7 @@ void verifyTimeForMeal() {
     sent = true;
     LUNCH = String( "M" + String(servingL) + "OM");
     softSerial.print(LUNCH);
-    Serial.println("S-a tr pranzu + posibil apa");
-    delay(200);
+    Serial.println("Lunch was sent!");
   }
 
   if (currentH == dnH && currentM == dnM && sent == false)
@@ -161,9 +153,10 @@ void verifyTimeForMeal() {
     sent = true;
     DINNER = String( "M" + String(servingD) + "OM");
     softSerial.print(DINNER);
-    Serial.println("S-a tr cina");
-    delay(200);
+    Serial.println("Dinner was sent!");
   }
+
+  delay(200);
 
   if (((currentH == brH && currentM == brM + 1) || (currentH == lcH && currentM == lcM + 1) || (currentH == dnH && currentM == dnM + 1)) && sent == true)
   {
@@ -182,7 +175,7 @@ void getFountainStatus()
     previousStatus = status;
     FOUNTAIN = String( "W" + String(status) + "OW");
     softSerial.print(FOUNTAIN);
-    Serial.println("S-a tr apa");
+    Serial.println("New water status was sent!");
     delay(200);
   }
 
@@ -193,7 +186,6 @@ void setup() {
   softSerial.begin(9600);
   Serial.begin(9600);
 
-  // connect to wifi.
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("connecting");
   while (WiFi.status() != WL_CONNECTED) {
@@ -218,15 +210,8 @@ void loop() {
   {
     notification = softSerial.readString();
 
-    boolean x = currentTime >= lastTimeOfNotificationFood + 1800;
-    Serial.println(x);
-
-    boolean y = currentTime >= lastTimeOfNotificationWater + 1800;
-    Serial.println(x);
-
-    if (currentTime >= lastTimeOfNotificationFood + 1800)
+    if (currentTime >= lastTimeOfNotificationFood + 1800000)
     {
-
       lastTimeOfNotificationFood = currentTime;
 
       notification.trim();
@@ -237,7 +222,7 @@ void loop() {
         notificationMessage = "DISTANCE";
         distancePath = String( pathSendTo + String("/") + notificationMessage );
         Firebase.setString(distancePath, "1");
-        Serial.println("S-a trimis notificare rezervor mancare");
+        Serial.println("A notification for the food tank was sent!");
 
         if (Firebase.failed()) {
           Serial.print("Sending distance notification failed");
@@ -246,14 +231,13 @@ void loop() {
       }
     }
 
-    if (currentTime >= lastTimeOfNotificationWater + 1800)
+    if (currentTime >= lastTimeOfNotificationWater + 1800000)
     {
-
       lastTimeOfNotificationWater = currentTime;
 
       notification.trim();
       Serial.println(notification);
-      
+
       if (notification.indexOf("WATER") >= 0)
       {
         notificationMessage = "WATER";
