@@ -5,8 +5,6 @@
 #include <SoftwareSerial.h>
 
 #define code "SNK2"
-
-// Set these to run example.
 #define FIREBASE_HOST "snackinator-lic-default-rtdb.europe-west1.firebasedatabase.app"
 #define FIREBASE_AUTH "7vNU6vUl9QqcWM8b0JvpWGjqo9himE8jAguDNAz3"
 #define WIFI_SSID "S&D"
@@ -51,7 +49,7 @@ String distancePath;
 String waterNotifPath;
 String weightPath;
 
-int currentTime, lastTimeOfNotification;
+int currentTime, lastTimeOfNotificationFood, lastTimeOfNotificationWater;
 
 void getFirebasePaths() {
   path = (char * ) malloc(255);
@@ -100,7 +98,7 @@ void getFirebasePaths() {
   strcpy(servingDinner, path);
   strcat(servingDinner, "/servingDinner");
 
-  
+
   fountainAllDay = (char * ) malloc(255);
   strcpy(fountainAllDay, path);
   strcat(fountainAllDay, "/fountainAllDay");
@@ -109,10 +107,6 @@ void getFirebasePaths() {
 void verifyTimeForMeal() {
 
   timeClient.update();
-  //set hour
-  Firebase.setInt("hour", timeClient.getHours());
-  //set minutes
-  Firebase.setInt("minutes", timeClient.getMinutes());
 
   int servingB, servingL, servingD;
 
@@ -141,31 +135,30 @@ void verifyTimeForMeal() {
   if (currentH == brH && currentM == brM && sent == false)
   {
     sent = true;
-    BREAKFAST = String( "  " + String(servingB));
+    BREAKFAST = String( "B" + String(servingB) + "OB");
     softSerial.print(BREAKFAST);
-    Serial.println("S-a tr micudejoon");
-    delay(200);
-  } 
-  
+    Serial.println("Breakfast was sent!");
+  }
+
   if (currentH == lcH && currentM == lcM && sent == false)
   {
     sent = true;
-    LUNCH = String( "   " + String(servingL));
+    LUNCH = String( "M" + String(servingL) + "OM");
     softSerial.print(LUNCH);
-    Serial.println("S-a tr pranzu + posibil apa");
-    delay(200);
-  } 
-  
+    Serial.println("Lunch was sent!");
+  }
+
   if (currentH == dnH && currentM == dnM && sent == false)
   {
     sent = true;
-    DINNER = String( "  " + String(servingD));
+    DINNER = String( "M" + String(servingD) + "OM");
     softSerial.print(DINNER);
-    Serial.println("S-a tr cina");
-    delay(200);
+    Serial.println("Dinner was sent!");
   }
 
-  if(((currentH == brH && currentM == brM + 1) || (currentH == lcH && currentM == lcM + 1) || (currentH == dnH && currentM == dnM + 1)) && sent == true)
+  delay(200);
+
+  if (((currentH == brH && currentM == brM + 1) || (currentH == lcH && currentM == lcM + 1) || (currentH == dnH && currentM == dnM + 1)) && sent == true)
   {
     Serial.println("Face sent = false");
     sent = false;
@@ -176,24 +169,23 @@ void verifyTimeForMeal() {
 void getFountainStatus()
 {
   status = Firebase.getInt(fountainAllDay);
-  
-  if(status != previousStatus)
+
+  if (status != previousStatus)
   {
     previousStatus = status;
-    FOUNTAIN = String( " " + String(status));
+    FOUNTAIN = String( "W" + String(status) + "OW");
     softSerial.print(FOUNTAIN);
-    Serial.println("S-a tr apa");
+    Serial.println("New water status was sent!");
     delay(200);
   }
-  
+
 }
 
 void setup() {
 
   softSerial.begin(9600);
   Serial.begin(9600);
-  
-  // connect to wifi.
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("connecting");
   while (WiFi.status() != WL_CONNECTED) {
@@ -214,48 +206,53 @@ void loop() {
 
   currentTime = timeClient.getEpochTime();
 
-  if (softSerial.available()) 
+  if (softSerial.available())
   {
     notification = softSerial.readString();
 
-    boolean x = currentTime >= lastTimeOfNotification + 1800;
-    Serial.println(x);
-
-   if(currentTime >= lastTimeOfNotification + 1800)
-   {
-    
-    lastTimeOfNotification = currentTime;
-
-    notification.trim();
-    Serial.println(notification);
-    
-    if(notification.startsWith("DISTANCE",0))
+    if (currentTime >= lastTimeOfNotificationFood + 1800000)
     {
-      notificationMessage = "DISTANCE";
-      distancePath = String( pathSendTo + String("/") + notificationMessage );
-      Firebase.setString(distancePath, "1");
-      Serial.println("S-a trimis notificare rezervor mancare");
+      lastTimeOfNotificationFood = currentTime;
 
-      if (Firebase.failed()) {
-      Serial.print("Sending distance notification failed");
-      Serial.println(Firebase.error()); 
-      }
-    }
-    
-    if(notification.indexOf("WATER",0))
-    {
-      notificationMessage = "WATER";
-      distancePath = String( pathSendTo + String("/") + notificationMessage );
-      Firebase.setString(distancePath, "1");
-      Serial.println("S-a trimis notificare apa");
+      notification.trim();
+      Serial.println(notification);
 
-      if (Firebase.failed()) {
-      Serial.print("Sending water notification failed");
-      Serial.println(Firebase.error()); 
+      if (notification.indexOf("DISTANCE") >= 0)
+      {
+        notificationMessage = "DISTANCE";
+        distancePath = String( pathSendTo + String("/") + notificationMessage );
+        Firebase.setString(distancePath, "1");
+        Serial.println("A notification for the food tank was sent!");
+
+        if (Firebase.failed()) {
+          Serial.print("Sending distance notification failed");
+          Serial.println(Firebase.error());
+        }
       }
     }
 
-   }  
+    if (currentTime >= lastTimeOfNotificationWater + 1800000)
+    {
+      lastTimeOfNotificationWater = currentTime;
+
+      notification.trim();
+      Serial.println(notification);
+
+      if (notification.indexOf("WATER") >= 0)
+      {
+        notificationMessage = "WATER";
+        distancePath = String( pathSendTo + String("/") + notificationMessage );
+        Firebase.setString(distancePath, "1");
+        Serial.println("S-a trimis notificare apa");
+
+        if (Firebase.failed()) {
+          Serial.print("Sending water notification failed");
+          Serial.println(Firebase.error());
+        }
+      }
+    }
+
+
   }
 
   verifyTimeForMeal();
