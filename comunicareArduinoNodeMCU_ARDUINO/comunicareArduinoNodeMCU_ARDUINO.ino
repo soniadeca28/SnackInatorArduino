@@ -1,32 +1,32 @@
 #include <SoftwareSerial.h>
 #include "HX711.h"
 
-//cantar
 #define data A2
 #define clk  A1
 
 HX711 scale;
-float calibration = 400; // this calibration factor must be adjusted according to your load cell
+float calibration = 400;
 float units;
 
-//motor:
-#define dirPin 2 //pin directie motor
-#define stepPin 3 //pin pas motor
-#define stepsPerRevolution 200 //o rotatie intreaga
-//enable:
-#define disableMotor 12 //pin enable
+#define dirPin 2
+#define stepPin 3
+#define stepsPerRevolution 200
+#define disableMotor 12
 
-//pompa:
-#define pumpController 13 //pin pompa
+int maxDistance = 21;
+
+#define pumpController 13
+
+int minWaterLvl = 150;
 
 SoftwareSerial softSerial(5, 6);
 
 unsigned long currentTime, lastTimeFood, lastTimeWater;
 
-#define echopin 8 // echo pin of the distance sensor
-#define trigpin 9 // trig pin of the distance sensor
+#define echopin 8
+#define trigpin 9
 
-float distance; // distance calculated by distance sensor
+float distance;
 
 String DISTANCE;
 String WATER;
@@ -48,30 +48,27 @@ int motorMicros;
 float multiplySteps;
 int errorM;
 
-int maxDistance;
 int case1Distance;
 int case2Distance;
 
 void serveFood(float srv, bool serveW)
 {
-  Serial.println(units);
-  Serial.println(distance);
-  if (distance < 22)
+  if (distance < maxDistance)
   {
     scale.set_scale(calibration);
     scale.tare(50);
     controlMotor(srv);
+
+    Serial.print("Served: ");
+    Serial.print(units);
+    Serial.println(" g");
   }
   else
   {
     Serial.println(distance);
   }
 
-  Serial.print("Served: ");
-  Serial.print(srv);
-  Serial.println(" g");
-
-  if (serveW == true && fountainStatus == 0 && waterLevel > 150)
+  if (serveW == true && fountainStatus == 0 && waterLevel > minWaterLvl)
   {
     Serial.println("Water was also served");
     controlFountain();
@@ -80,7 +77,7 @@ void serveFood(float srv, bool serveW)
 
 void serveWater(int fountainStatus)
 {
-  if (waterLevel <= 150)
+  if (waterLevel <= minWaterLvl)
   {
     digitalWrite(pumpController, 0);
     return;
@@ -101,7 +98,6 @@ void verifyDistance()
 
 void verifyWaterLevel()
 {
-  //SAVE WATER LEVEL
   digitalWrite(waterPower, HIGH);
   delay(100);
   waterLevel = analogRead(waterSignal);
@@ -115,31 +111,29 @@ void checkForNotifications()
 
   verifyWaterLevel();
 
-  if (currentTime >= lastTimeFood && distance > 20)
+  if (currentTime >= lastTimeFood && distance >= maxDistance - 1)
   {
     lastTimeFood = currentTime + 1800000;
 
     DISTANCE = String("DISTANCE");
     softSerial.print(DISTANCE);
     Serial.println("Empty food tank notification sent!");
-    Serial.println(distance);
   }
 
-  if (currentTime >= lastTimeWater && waterLevel <= 200)
+  if (currentTime >= lastTimeWater && waterLevel <= minWaterLvl + 50)
   {
     lastTimeWater = currentTime + 1800000;
 
     WATER = String("WATER");
     softSerial.print(WATER);
     Serial.println("Empty fountain notification sent!");
-    Serial.println(waterLevel);
   }
 
 }
 
 void getGrams()
 {
-  units = scale.get_units(), 5;
+  units = scale.get_units();
   if (units < 0)
   {
     units = 0.00;
@@ -159,19 +153,41 @@ void controlMotor(float srv)
   Serial.print(units);
   Serial.println(" grams");
 
-  if(srv < 30)
+  if (srv > 35)
   {
-    errorM = 10;
+    if (distance < case1Distance)
+    {
+      errorM = 5;
+    }
+    else if (distance >= case1Distance && distance < case2Distance)
+    {
+      errorM = 20;
+    }
+    else
+    {
+      errorM = 10;
+    }
   }
-  else if (srv >30 && srv < 40)
+  else if (srv > 20 && srv <= 35)
   {
-    errorM = 15;
+    if (distance < case1Distance)
+    {
+      errorM = 5;
+    }
+    else if (distance >= case1Distance && distance < case2Distance)
+    {
+      errorM = 10;
+    }
+    else
+    {
+      errorM = 7;
+    }
   }
   else
   {
-    errorM = 20;
+    errorM = 5;
   }
-  maxDistance = 21;
+
   case1Distance = 14;
   case2Distance = 17;
 
@@ -189,17 +205,16 @@ void controlMotor(float srv)
       digitalWrite(dirPin, HIGH);
       digitalWrite(disableMotor, LOW);
 
-      for (int i = 0; i < stepsPerRevolution * multiplySteps; i++) {
-        if (units < srv - errorM)
-        {
+      getGrams();
+
+      if (units < srv - errorM)
+      {
+        for (int i = 0; i < stepsPerRevolution * multiplySteps; i++) {
+
           digitalWrite(stepPin, HIGH);
           delayMicroseconds(motorMicros);
           digitalWrite(stepPin, LOW);
           delayMicroseconds(motorMicros);
-        }
-        else
-        {
-          break;
         }
       }
 
@@ -207,17 +222,16 @@ void controlMotor(float srv)
 
       digitalWrite(dirPin, LOW);
 
-      for (int i = 0; i < stepsPerRevolution * multiplySteps; i++) {
-        if (units < srv - errorM)
-        {
+      getGrams();
+
+      if (units < srv - errorM)
+      {
+        for (int i = 0; i < stepsPerRevolution * multiplySteps; i++) {
+
           digitalWrite(stepPin, HIGH);
           delayMicroseconds(motorMicros);
           digitalWrite(stepPin, LOW);
           delayMicroseconds(motorMicros);
-        }
-        else
-        {
-          break;
         }
       }
       digitalWrite(disableMotor, HIGH);
@@ -234,40 +248,38 @@ void controlMotor(float srv)
       digitalWrite(dirPin, HIGH);
       digitalWrite(disableMotor, LOW);
 
-      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
-        if (units < srv - errorM)
-        {
+      getGrams();
+
+      if (units < srv - errorM)
+      {
+        for (int i = 0; i < stepsPerRevolution / multiplySteps; i++) {
+
           digitalWrite(stepPin, HIGH);
           delayMicroseconds(motorMicros);
           digitalWrite(stepPin, LOW);
           delayMicroseconds(motorMicros);
-        }
-        else
-        {
-          break;
         }
       }
 
       digitalWrite(dirPin, LOW);
 
-      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
-        if (units < srv - errorM)
-        {
+      getGrams();
+
+      if (units < srv - errorM)
+      {
+        for (int i = 0; i < stepsPerRevolution / multiplySteps; i++) {
+
           digitalWrite(stepPin, HIGH);
           delayMicroseconds(motorMicros);
           digitalWrite(stepPin, LOW);
           delayMicroseconds(motorMicros);
-        }
-        else
-        {
-          break;
         }
       }
       digitalWrite(disableMotor, HIGH);
     }
     else if (distance >= case2Distance)
     {
-       Serial.println("Case 2");
+      Serial.println("Case 2");
       Serial.println(units);
       Serial.println(distance);
 
@@ -277,43 +289,41 @@ void controlMotor(float srv)
       digitalWrite(dirPin, HIGH);
       digitalWrite(disableMotor, LOW);
 
-      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
-        if (units < srv - errorM)
-        {
+      getGrams();
+
+      if (units < srv - errorM)
+      {
+        for (int i = 0; i < stepsPerRevolution / multiplySteps; i++) {
+
           digitalWrite(stepPin, HIGH);
           delayMicroseconds(motorMicros);
           digitalWrite(stepPin, LOW);
           delayMicroseconds(motorMicros);
-        }
-        else
-        {
-          break;
         }
       }
 
       digitalWrite(dirPin, LOW);
 
-      for (int i = 0; i < stepsPerRevolution/multiplySteps; i++) {
-        if (units < srv - errorM)
-        {
+      getGrams();
+
+      if (units < srv - errorM)
+      {
+        for (int i = 0; i < stepsPerRevolution / multiplySteps; i++) {
+
           digitalWrite(stepPin, HIGH);
           delayMicroseconds(motorMicros);
           digitalWrite(stepPin, LOW);
           delayMicroseconds(motorMicros);
         }
-        else
-        {
-          break;
-        }
       }
-      digitalWrite(disableMotor, HIGH);;
+      digitalWrite(disableMotor, HIGH);
     }
     getGrams();
     verifyDistance();
   }
 
-  //fara sa disable-ui motorul cand merge pompa, din cauza power supply-ului comun, merge si motorul aiurea cand merge pompa
-  digitalWrite(disableMotor, HIGH); //disable motor --> nu e negat deci e normally enabled
+
+  digitalWrite(disableMotor, HIGH);
 }
 
 void controlFountain()
@@ -358,9 +368,11 @@ void loop() {
   if (softSerial.available())
   {
     received = softSerial.readString();
+    Serial.println(received);
 
     if (received.indexOf("B") >= 0 && received.indexOf("OB") >= 0)
     {
+      Serial.println("Received breakfast");
       Serial.println(received);
       received = received.substring(received.indexOf("B") + 1, received.indexOf("OB"));
       received.trim();
@@ -370,6 +382,7 @@ void loop() {
     }
     else if (received.indexOf("M") >= 0 && received.indexOf("OM") >= 0)
     {
+      Serial.println("Received meal");
       received = received.substring(received.indexOf("M") + 1, received.indexOf("OM"));
       received.trim();
       serving = received.toFloat();
@@ -378,6 +391,7 @@ void loop() {
     }
     else if (received.indexOf("W") >= 0 && received.indexOf("OW") >= 0)
     {
+      Serial.println("Received water status");
       received = received.substring(received.indexOf("W") + 1, received.indexOf("OW"));
       received.trim();
       fountainStatus = received.toInt();
@@ -385,8 +399,7 @@ void loop() {
 
   }
 
-  checkForNotifications(); // send notification if distance is too big
-  //send notification if water level is too low
+  checkForNotifications();
   serveWater(fountainStatus);
 
 }

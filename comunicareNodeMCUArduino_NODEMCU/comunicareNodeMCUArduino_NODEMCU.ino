@@ -10,7 +10,7 @@
 #define WIFI_SSID "S&D"
 #define WIFI_PASSWORD "budinca123"
 
-const long utcOffsetInSeconds = 10800; //set time zone
+const long utcOffsetInSeconds = 10800;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "europe.pool.ntp.org", utcOffsetInSeconds);
 
@@ -154,6 +154,7 @@ void verifyTimeForMeal() {
     DINNER = String( "M" + String(servingD) + "OM");
     softSerial.print(DINNER);
     Serial.println("Dinner was sent!");
+    Serial.println(DINNER);
   }
 
   delay(200);
@@ -176,6 +177,7 @@ void getFountainStatus()
     FOUNTAIN = String( "W" + String(status) + "OW");
     softSerial.print(FOUNTAIN);
     Serial.println("New water status was sent!");
+    Serial.println(FOUNTAIN);
     delay(200);
   }
 
@@ -243,7 +245,7 @@ void loop() {
         notificationMessage = "WATER";
         distancePath = String( pathSendTo + String("/") + notificationMessage );
         Firebase.setString(distancePath, "1");
-        Serial.println("S-a trimis notificare apa");
+        Serial.println("Water notification sent");
 
         if (Firebase.failed()) {
           Serial.print("Sending water notification failed");
